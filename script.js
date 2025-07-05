@@ -1,36 +1,49 @@
 
-document.getElementById("uploadForm").addEventListener("submit", function (e) {
-  e.preventDefault();
-  const imageInput = document.getElementById("imageInput");
-  const file = imageInput.files[0];
-  if (!file) return alert("Por favor, selecciona una imagen.");
+const MODEL = "aves_humedales";
+const VERSION = 2;
+const API_KEY = "PhkfCxacir8ccO2z6Y7G";
 
-  const preview = document.getElementById("preview");
-  const readerPreview = new FileReader();
-  readerPreview.onload = function () {
-    preview.src = readerPreview.result;
-  };
-  readerPreview.readAsDataURL(file);
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
 
-  const reader = new FileReader();
-  reader.onloadend = function () {
-    const base64 = reader.result.split(",")[1];
-    fetch("https://detect.roboflow.com/aves_humedales/2?api_key=PhkfCxacir8ccO2z6Y7G", {
-      method: "POST",
-      body: base64,
-    })
-      .then((res) => res.json())
-      .then((data) => {
+function runInference() {
+    const fileInput = document.getElementById("imageUpload");
+    if (!fileInput.files.length) return;
+
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function () {
         const img = new Image();
-        img.src = data.image;
-        const output = document.getElementById("output");
-        output.innerHTML = "";
-        output.appendChild(img);
-      })
-      .catch((err) => {
-        console.error(err);
-        alert("Error al procesar la imagen.");
-      });
-  };
-  reader.readAsDataURL(file);
-});
+        img.onload = function () {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+
+            fetch(`https://detect.roboflow.com/${MODEL}/${VERSION}?api_key=${API_KEY}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: "image=" + encodeURIComponent(reader.result)
+            })
+            .then(res => res.json())
+            .then(data => {
+                data.predictions.forEach(pred => {
+                    ctx.strokeStyle = "#FF0000";
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(pred.x - pred.width / 2, pred.y - pred.height / 2, pred.width, pred.height);
+                    ctx.font = "18px Arial";
+                    ctx.fillStyle = "#FF0000";
+                    ctx.fillText(pred.class, pred.x - pred.width / 2, pred.y - pred.height / 2 - 5);
+                });
+            })
+            .catch(err => {
+                alert("Error al procesar la imagen: " + err.message);
+            });
+        };
+        img.src = reader.result;
+    };
+
+    reader.readAsDataURL(file);
+}
