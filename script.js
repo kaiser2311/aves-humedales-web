@@ -5,6 +5,13 @@ document.getElementById("uploadForm").addEventListener("submit", function (e) {
   const file = imageInput.files[0];
   if (!file) return alert("Por favor, selecciona una imagen.");
 
+  const preview = document.getElementById("preview");
+  const readerPreview = new FileReader();
+  readerPreview.onload = function () {
+    preview.src = readerPreview.result;
+  };
+  readerPreview.readAsDataURL(file);
+
   const reader = new FileReader();
   reader.onloadend = function () {
     const base64 = reader.result.split(",")[1];
